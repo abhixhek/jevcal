@@ -20,6 +20,10 @@ rows that escalate: 85.4%   cascade $1.930 per 1k rows vs LLM-only $2.25 (14.4% 
 a row escalates when any question is unsure; the bottleneck is is_urgent (handles 21.2% at a 97% target)
 ```
 
+![jevcal lint and demo output in a terminal](docs/terminal.png)
+
+![jevcal HTML report: reliability diagram and accuracy-vs-coverage curve](docs/report.png)
+
 That is simulator output, not a Jev benchmark. TypeSafe's customer agreement restricts publishing performance
 numbers for Jev, so this README contains none, on purpose. That is also the reason this tool exists: nobody can
 hand you trustworthy numbers for your use case, so you measure it yourself, privately, in one command.
