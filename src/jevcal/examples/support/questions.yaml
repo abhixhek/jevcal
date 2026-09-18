@@ -1,0 +1,27 @@
+# Three typed questions about one support ticket, one of each primitive.
+model: jev-latest
+
+questions:
+  is_urgent:
+    type: noul
+    instructions: Does this ticket need a response today?
+    criteria:
+      "true": The customer states a deadline, an outage, or ongoing business impact.
+      "false": No time pressure is expressed, or the customer says it can wait.
+    target: 0.97          # acting on a wrong "not urgent" is expensive, so ask for more
+
+  department:
+    type: choice
+    instructions: Which team should handle this ticket?
+    criteria:
+      billing: Charges, invoices, refunds, payouts, receipts.
+      technical: Bugs, errors, outages, integrations, login problems.
+      sales: Pricing, plan changes, demos, procurement questions.
+
+  frustration:
+    type: score
+    instructions: How frustrated is the customer?
+    criteria:
+      - Calm or friendly
+      - Frustrated or impatient
+      - Very angry or threatening to leave

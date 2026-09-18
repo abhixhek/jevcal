@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+.jevcal/
+jevcal-demo/
+decisions.lock.json
+jevcal-report.html
+predictions.jsonl
+.env
