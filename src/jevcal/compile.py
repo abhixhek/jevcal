@@ -93,6 +93,11 @@ def compile_question(
         # confidences usually cluster near 1.0; finer bins keep the diagram readable there
         "bins": metrics.reliability_bins(records, bins=20 if min(r.top_prob for r in records) >= 0.5 else 10),
         "sweep": metrics.sweep(records, chosen_measure),
+        # confident and wrong: almost always a bad label or an ambiguous question, so worth a human look
+        "confident_misses": [
+            {"row_id": r.row_id, "gold": r.gold, "pred": r.pred, "confidence": r.measures[chosen_measure]}
+            for r in sorted((r for r in records if not r.correct), key=lambda r: -r.measures.get(chosen_measure, 0.0))[:12]
+        ],
         "warnings": warnings,
     }
 

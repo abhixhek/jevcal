@@ -183,7 +183,7 @@ def tile(label: str, value: str, sub: str = "") -> str:
     return f'<div class="tile"><div class="k">{esc(label)}</div><div class="v">{esc(value)}</div><div class="s">{esc(sub)}</div></div>'
 
 
-def question_section(qid: str, instructions: str, result: dict) -> str:
+def question_section(qid: str, instructions: str, result: dict, states: dict[str, str]) -> str:
     tone, icon, label = STATUS[result["status"]]
     held, cal = result["holdout"], result["calibration"]
     over = cal["overconfidence"]
@@ -206,6 +206,11 @@ def question_section(qid: str, instructions: str, result: dict) -> str:
     )
     auroc = " &middot; ".join(f"{esc(m)} {num(v)}" for m, v in cal["auroc"].items())
     notes = "".join(f'<p class="note">{esc(w)}</p>' for w in result["warnings"])
+    misses = "".join(
+        f"<tr><td>{esc(m['row_id'])}</td><td style='text-align:left'>{esc(states.get(m['row_id'], '')[:220])}</td>"
+        f"<td>{esc(m['gold'])}</td><td>{esc(m['pred'])}</td><td>{m['confidence']:.2f}</td></tr>"
+        for m in result.get("confident_misses", [])
+    )
     return f"""
 <section class="card">
   <div class="qhead"><h2>{esc(qid)}</h2>
@@ -225,13 +230,17 @@ def question_section(qid: str, instructions: str, result: dict) -> str:
   {notes}
   <details><summary>Accuracy by predicted answer, at the threshold</summary><div class="scroll">
     <table><tr><th>Predicted answer</th><th>Accepted</th><th>Accuracy</th></tr>{answers}</table></div></details>
+  <details><summary>Confident and wrong: check these labels first ({len(result.get("confident_misses", []))})</summary><div class="scroll">
+    <table><tr><th>Row</th><th style="text-align:left">State</th><th>Label</th><th>Model</th><th>Confidence</th></tr>{misses}</table></div>
+    <p class="qtext" style="margin-top:8px">A confident miss is usually a wrong label or an ambiguous question, not a model failure. Fix those before trusting any threshold.</p></details>
   <details><summary>Threshold table</summary><div class="scroll">
     <table><tr><th>Threshold</th><th>Handled</th><th>Accepted accuracy</th><th>95% lower bound</th><th>Rows</th></tr>{sweep_rows}</table></div>
     <p class="qtext" style="margin-top:8px">How well each confidence measure separates right from wrong (AUROC): {auroc}</p></details>
 </section>"""
 
 
-def render(title: str, meta: dict, questions: dict, results: dict[str, dict], cost: dict | None) -> str:
+def render(title: str, meta: dict, questions: dict, results: dict[str, dict], cost: dict | None,
+           states: dict[str, str] | None = None) -> str:
     top = [tile("Labeled rows", f"{meta['n_rows']:,}", f"{pct(meta['holdout'], 0)} held out")]
     if cost:
         top += [
@@ -241,7 +250,7 @@ def render(title: str, meta: dict, questions: dict, results: dict[str, dict], co
         ]
     sim_note = ('<p class="note">These numbers come from the built-in simulator, not from Jev. '
                 'They demonstrate the pipeline only.</p>') if meta.get("provider") == "sim" else ""
-    sections = "".join(question_section(qid, questions[qid].instructions, result) for qid, result in results.items())
+    sections = "".join(question_section(qid, questions[qid].instructions, result, states or {}) for qid, result in results.items())
     models = ", ".join(meta.get("models") or []) or "unknown"
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

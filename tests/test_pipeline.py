@@ -48,7 +48,7 @@ def test_cli_demo_then_check_passes_and_detects_drift(tmp_path, capsys):
     assert lock["questions"]["is_urgent"]["target"] == 0.97  # per-question target from the YAML
     assert lock["model_observed"] == ["sim-0"]
     html = (tmp_path / "demo/report.html").read_text()
-    assert "<svg" in html and "simulator" in html
+    assert "<svg" in html and "simulator" in html and "Confident and wrong" in html
 
     assert main(["check", "--lock", "demo/decisions.lock.json", "--data", "demo/tickets.jsonl"]) == 0
 

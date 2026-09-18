@@ -19,7 +19,7 @@ from .measure import build_records, run as run_measure, usage_summary
 from .optimize import optimize as run_optimize
 from .providers import ProviderError, build_provider
 from .providers.llm import DEFAULT_LLM, build_llm
-from .spec import SpecError, load_questions, load_rows, write_jsonl
+from .spec import SpecError, load_questions, load_rows, state_text, write_jsonl
 
 
 def _pct(value) -> str:
@@ -67,7 +67,8 @@ def _compile_and_write(args, questions, rows, predictions, provider_name: str) -
     Path(args.lock).write_text(json.dumps(lock, indent=2, ensure_ascii=False) + "\n")
     meta = {"n_rows": len(rows), "holdout": args.holdout, "provider": provider_name, "models": usage["models"],
             "created": dt.datetime.now().strftime("%Y-%m-%d %H:%M"), "version": __version__}
-    report.write(args.report, "jevcal report", meta, questions.questions, results, cost)
+    report.write(args.report, "jevcal report", meta, questions.questions, results, cost,
+                 states={r["id"]: state_text(r["state"]) for r in rows})
 
     print(f"\n{'question':<22}{'threshold':>10}{'handled':>9}{'accepted acc':>14}{'all acc':>9}{'ECE':>8}  status")
     for qid, r in results.items():
@@ -86,6 +87,10 @@ def _compile_and_write(args, questions, rows, predictions, provider_name: str) -
     for qid, r in results.items():
         for warning in r["warnings"]:
             print(f"! {qid}: {warning}")
+        sure_and_wrong = [m for m in r["confident_misses"] if m["confidence"] >= 0.9]
+        if sure_and_wrong and provider_name != "sim":  # the simulator is overconfident on purpose
+            print(f"! {qid}: {len(sure_and_wrong)}+ misses at 90%+ confidence. That usually means bad labels or an ambiguous "
+                  "question; see 'Confident and wrong' in the report")
     if usage["n_errors"]:
         print(f"! {usage['n_errors']} rows errored and were left out")
     print(f"\nwrote {args.lock} and {args.report}")

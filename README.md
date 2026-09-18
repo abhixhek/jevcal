@@ -16,11 +16,15 @@ department                 0.954    81.3%         96.3%    93.8%    3.5%  ok
 frustration                0.875    98.0%         95.4%    95.5%    1.6%  ok
 (handled / accepted accuracy are measured on the held-out split)
 
-rows that escalate: 85.4%   cascade $1.927 per 1k rows vs LLM-only $2.25 (14.4% saved)
+rows that escalate: 85.4%   cascade $1.930 per 1k rows vs LLM-only $2.25 (14.4% saved)
 a row escalates when any question is unsure; the bottleneck is is_urgent (handles 21.2% at a 97% target)
 ```
 
-That is simulator output, not a Jev benchmark. Read it as the kind of answer you get: `department` can run
+That is simulator output, not a Jev benchmark. TypeSafe's customer agreement restricts publishing performance
+numbers for Jev, so this README contains none, on purpose. That is also the reason this tool exists: nobody can
+hand you trustworthy numbers for your use case, so you measure it yourself, privately, in one command.
+
+Read the output as the kind of answer you get: `department` can run
 81% on the fast model at 96% accuracy, while the 97% target on `is_urgent` is so strict that it alone sends
 most rows to the LLM. Loosen that one target, or reword that one question, and the bill moves.
 
@@ -104,6 +108,10 @@ jevcal run --questions questions.yaml --data data.jsonl --target 0.98
 You get `decisions.lock.json` (thresholds + the evidence behind them) and `jevcal-report.html`
 (reliability diagram, accuracy-vs-coverage curve, per-answer accuracy, cost split).
 
+The report also lists rows where the model was **confident and wrong**. Read those first. In practice most of
+them turn out to be a wrong label or an ambiguous question rather than a model failure, and fixing them moves
+the numbers more than any threshold will.
+
 Thresholds are **picked on one half of your data and verified on the other half**. If a threshold does
 not hold on the held-out half, jevcal says so instead of reporting the flattering number. Add
 `--conservative` to require the 95% lower confidence bound, not the point estimate, to clear the target.
@@ -157,7 +165,8 @@ Fails when accepted accuracy drops below target, when coverage falls (more traff
 
 `--provider llm --llm openai:gpt-...` runs the same questions through a text LLM, so you can compare an
 all-LLM baseline against your labels. LLM specs: `anthropic:<model>`, `openai:<model>` (honours
-`OPENAI_BASE_URL`, so any compatible endpoint works), `openrouter:<model>`.
+`OPENAI_BASE_URL`, so any compatible endpoint works), `openrouter:<model>`, and `claude-cli:<model>`
+(e.g. `claude-cli:sonnet`), which uses your local Claude Code login instead of an API key.
 
 ## What the numbers mean
 
@@ -172,8 +181,11 @@ all-LLM baseline against your labels. LLM specs: `anthropic:<model>`, `openai:<m
 - A threshold is only as good as your sample. Under ~100 labeled rows per question, expect it not to hold.
 - One threshold per question. Per-answer accuracy is reported so you can see when one class is weak.
 - Responses are cached in `.jevcal/cache` so reruns are free; `check` always bypasses the cache.
-- Tested end to end against the simulator and against the response shapes in TypeSafe's public API reference.
+- Verified end to end (`run`, `optimize`, `check`, and the runtime cascade) against the live TypeSafe API on
+  `jev-1.13.0`, 2026-09-18. `label` and the built-in LLM fallbacks are covered by tests with a stub LLM.
   Not affiliated with TypeSafe AI.
+- The API returns probabilities rounded to two decimals, and identical requests can occasionally return a
+  different answer. `check` has tolerances for that; do not set them to zero.
 - Measure your own data, privately. jevcal ships no leaderboard and publishes nothing.
 
 ## Development

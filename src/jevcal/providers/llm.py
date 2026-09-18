@@ -4,6 +4,7 @@ Spec strings:
     anthropic:claude-opus-5          official `anthropic` SDK (pip install 'jevcal[anthropic]')
     openai:<model>                   any OpenAI-compatible endpoint (OPENAI_API_KEY, OPENAI_BASE_URL)
     openrouter:<model>               OpenRouter (OPENROUTER_API_KEY)
+    claude-cli:<model>               your local Claude Code login, no API key (e.g. claude-cli:sonnet)
 """
 
 from __future__ import annotations
@@ -11,6 +12,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -112,6 +116,32 @@ class OpenAICompatLLM(LLM):
         raise ProviderError(f"{self.spec}: retries exhausted")
 
 
+class ClaudeCliLLM(LLM):
+    """Shells out to `claude -p`, so it runs on whatever account Claude Code is signed in to."""
+
+    def __init__(self, model: str) -> None:
+        self.binary = shutil.which("claude")
+        if not self.binary:
+            raise ProviderError("the `claude` CLI is not on PATH; install Claude Code or use another LLM spec")
+        self.model = model
+        self.spec = f"claude-cli:{model}"
+        self.cwd = tempfile.mkdtemp(prefix="jevcal-claude-")  # an empty dir, so no project context leaks in
+
+    def complete(self, system: str, user: str) -> str:
+        command = [self.binary, "-p", "--model", self.model, "--output-format", "text", "--append-system-prompt", system]
+        # when jevcal itself runs inside a Claude Code session, don't hand that session's plumbing to the child
+        env = {k: v for k, v in os.environ.items() if not k.startswith(("CLAUDE_CODE_", "CLAUDECODE"))}
+        try:
+            done = subprocess.run(command, input=user, capture_output=True, text=True, timeout=300, cwd=self.cwd, env=env)
+        except subprocess.TimeoutExpired as exc:
+            raise ProviderError(f"{self.spec} timed out") from exc
+        if done.returncode != 0:
+            detail = (done.stderr or done.stdout).strip()[:300]
+            hint = " Run `claude` in a terminal and use /login, then retry." if "authenticate" in detail.lower() else ""
+            raise ProviderError(f"{self.spec} exited {done.returncode}: {detail}{hint}")
+        return done.stdout
+
+
 class CallableLLM(LLM):
     """Wrap any function (system, user) -> str. Used in tests and for custom backends."""
 
@@ -135,7 +165,9 @@ def build_llm(spec: str | None) -> LLM:
         return OpenAICompatLLM(model, base, os.environ.get("OPENAI_API_KEY"), "openai")
     if kind == "openrouter":
         return OpenAICompatLLM(model, "https://openrouter.ai/api/v1", os.environ.get("OPENROUTER_API_KEY"), "openrouter")
-    raise ProviderError(f"unknown LLM provider {kind!r} (expected anthropic, openai, or openrouter)")
+    if kind == "claude-cli":
+        return ClaudeCliLLM(model)
+    raise ProviderError(f"unknown LLM provider {kind!r} (expected anthropic, openai, openrouter, or claude-cli)")
 
 
 def extract_json(text: str) -> Any:

@@ -51,7 +51,7 @@ TONE = {
     0: ["Thanks for your help!", "Appreciate the great product.", "Hope you are having a good week.", ""],
     1: ["This is getting frustrating.", "I have already written about this once.", "I expected this to work by now.",
         "Honestly this is annoying."],
-    2: ["This is completely unacceptable.", "I am furious, this is the third time.", "Fix this or we cancel today.",
+    2: ["This is completely unacceptable.", "I am furious, this is the third time.", "Fix this or we are cancelling our contract.",
         "Worst support experience I have ever had."],
 }
 OPENERS = ["Hi team,", "Hello,", "Hey,", "To whom it may concern,", "Support,", ""]
@@ -64,6 +64,8 @@ def main() -> None:
         department = rng.choice(list(ISSUES))
         urgent = rng.random() < 0.4
         frustration = rng.choices([0, 1, 2], weights=[5, 3, 2])[0]
+        if urgent:
+            frustration = max(frustration, 1)  # "respond immediately" never reads as calm, so don't label it calm
         issue = rng.choice(ISSUES[department])
         body = [issue[0].upper() + issue[1:] + ".",
                 rng.choice(URGENT if urgent else CALM_TIMING), rng.choice(TONE[frustration])]

@@ -1,0 +1,12 @@
+# One yes/no decision over the UCI SMS Spam Collection (human-labeled).
+# Pin the version so the thresholds in the lock file keep meaning what they meant.
+model: jev-1.13.0
+
+questions:
+  is_spam:
+    type: noul
+    instructions: Is this text message spam?
+    criteria:
+      "true": Unsolicited promotion, prize or lottery claims, premium-rate numbers, phishing, or subscription bait.
+      "false": An ordinary personal or transactional message between people who know each other.
+    target: 0.99

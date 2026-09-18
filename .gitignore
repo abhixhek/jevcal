@@ -11,3 +11,6 @@ decisions.lock.json
 jevcal-report.html
 predictions.jsonl
 .env
+examples/sms_spam/data.jsonl
+examples/sms_spam/raw/
+runs/
